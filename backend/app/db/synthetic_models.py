@@ -2,9 +2,11 @@ from enum import Enum as PyEnum
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Enum
 from sqlalchemy.sql import func
 from pydantic import BaseModel
-from typing import Dict, Any, Literal, Union
+from typing import Dict, Any, Literal, Optional, Union
 from .base import Base
+from datetime import date
 
+# PYDANTIC SCHEMAS - API Input/Output Validation
 # Action types: these are the actions can be logged
 class ActionType(PyEnum):
     HTTP_REQUEST = "http_request"
@@ -83,6 +85,8 @@ class CustomPayload(BaseModel):
     custom_action: str # Name of the custom action being logged
     data: Dict[str, Any]
 
+
+
 # Union type for all possible payloads
 LogPayload = Union[HttpRequestPayload,
                    ClickPayload,
@@ -95,6 +99,10 @@ LogPayload = Union[HttpRequestPayload,
                    SetStoragePayload,
                    CustomPayload]
 
+
+
+
+# This is the ORM Log model that will be used to store logs in the database
 class Log(Base):
     __tablename__ = "logs"
 
@@ -132,3 +140,73 @@ class Log(Base):
         elif action_type == ActionType.CUSTOM:
             self.payload = CustomPayload(**payload).model_dump()
 
+
+############## Pydantic model for getting roommate profiles###################
+class RoommateRegisterProfile(BaseModel):
+    first_name: str
+    last_name: str
+    gender : str
+    age: int
+    occupation: str
+    bio: str
+    preferred_location: str
+    preferred_room_type: str  # e.g., "Single", "Shared"
+    hobbies: list[str]  # Comma-separated list of hobbies
+    pets_allowed: bool  
+    smoking_allowed: bool
+    drinking_allowed: bool
+    sleepSchedule: str  # e.g., "Night Owl", "Early Bird"
+    cookingFrequency: str  # e.g., "Daily", "Weekly", "Rarely"
+    cleanlinessLevel: int  # e.g., "Very Clean", "Moderately Clean", "Not Clean"
+    noiseTolerance: int  # e.g., "Very Tolerant", "Moderately Tolerant", "Not Tolerant"
+    socialInteraction: int  # e.g., "Very Social", "Moderately Social", "Not Social"
+    move_in_date: date # ISO format date string
+    move_out_date: Optional[date] = None  # Optional, ISO format date string
+    budget_min: int
+    budget_max: int
+    verified : bool
+    image_url: str # URL to the profile image
+    class Config:
+        orm_mode = True  # Enable ORM mode to read data from SQLAlchemy models
+        json_encoders = {
+            list: lambda v: ', '.join(v)  # Convert list to comma-separated string
+        }
+
+class RoommateSignUp(BaseModel):
+    email:str
+    password:str
+
+class RoommateLogin(BaseModel):
+    email: str
+    password: str
+
+class RoommateProfile(BaseModel):
+    user_id : int
+    first_name: str
+    last_name: str
+    gender : str
+    age: int
+    occupation: str
+    bio: str
+    preferred_location: str
+    preferred_room_type: str  # e.g., "Single", "Shared"
+    hobbies: str  # Comma-separated list of hobbies
+    pets_allowed: bool  
+    smoking_allowed: bool
+    drinking_allowed: bool
+    sleepSchedule: str  # e.g., "Night Owl", "Early Bird"
+    cookingFrequency: str  # e.g., "Daily", "Weekly", "Rarely"
+    cleanlinessLevel: int  # e.g., "Very Clean", "Moderately Clean", "Not Clean"
+    noiseTolerance: int  # e.g., "Very Tolerant", "Moderately Tolerant", "Not Tolerant"
+    socialInteraction: int  # e.g., "Very Social", "Moderately Social", "Not Social"
+    move_in_date: date # ISO format date string
+    move_out_date: Optional[date] = None  # Optional, ISO format date string
+    budget_min: int
+    budget_max: int
+    verified : bool
+    image_url: str # URL to the profile image
+    class Config:
+        orm_mode = True  # Enable ORM mode to read data from SQLAlchemy models
+        json_encoders = {
+            list: lambda v: ', '.join(v)  # Convert list to comma-separated string
+        }

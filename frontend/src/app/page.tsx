@@ -1,8 +1,7 @@
 'use client';
-
 import { useState, useEffect } from "react";
-import { LoginForm } from "../components/LoginForm";
-import { NotesList } from "../components/NotesList";
+import Link from "next/link";
+import Image from "next/image";
 
 declare global {
   interface Window {
@@ -12,33 +11,49 @@ declare global {
 
 export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [ userId, setUserId ] = useState<string | null>(null);
 
+  // Initialize session on component mount
   useEffect(() => {
-    // Initialize session on component mount
-    console.log("Initializing session...");
-    fetch("http://localhost:8000/_synthetic/new_session?seed=123", {
-      method: "POST",
-    })
-      .then(async (r) => {
-        console.log("Session response status:", r.status);
-        const text = await r.text();
-        console.log("Raw response:", text);
-        return JSON.parse(text);
-      })
-      .then((d) => {
-        console.log("Session data:", d);
-        if (!d.session_id) {
-          throw new Error("No session_id in response");
+    if( window.__SESSION_ID__) {
+      setSessionId(window.__SESSION_ID__); // Set sessionId from global window object
+      console.log('Session ID already set:', window.__SESSION_ID__);
+      return; // If sessionId is already set, skip initialization
+    }
+    const getSessionId = async()=>{
+      try{
+        console.log('Fetching new session ID...');
+        const response = await fetch(`http://127.0.0.1:8000/_synthetic/new_session`,{
+          method: 'POST',
+        })
+        const data = await response.json()
+        const sessionId = data.session_id
+        if(!sessionId){
+          throw new Error('No session ID in the response');
         }
-        setSessionId(d.session_id);
-        window.__SESSION_ID__ = d.session_id;
-        console.log("Session ID stored:", d.session_id);
-      })
-      .catch((error) => {
-        console.error("Failed to initialize session:", error);
-      });
+        console.log('New session ID:', sessionId);
+        setSessionId(sessionId);
+        window.__SESSION_ID__ = sessionId; // Store in global window object
+       } 
+      catch (error) {
+        console.error('Error fetching session ID:', error);
+        alert('Failed to initialize session. Please try again later.');
+      }}
+      getSessionId();
   }, []);
+
+  // Check localStorage for user_id on component mount
+  // This will only run in the browser, not during server-side rendering
+  useEffect(() => {
+    // Access localStorage only in the browser
+    const storedId = localStorage.getItem('user_id');
+    if (storedId) {
+      setUserId(storedId);
+      console.log('User ID from localStorage:', storedId);
+    } else {
+      console.log('No user_id found in localStorage');
+    }
+  },[sessionId]);
 
   if (!sessionId) {
     return (
@@ -49,20 +64,30 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8 px-4">
-        {!userId ? (
-          <LoginForm 
-            sessionId={sessionId} 
-            onLoginSuccess={setUserId} 
-          />
-        ) : (
-          <NotesList 
-            sessionId={sessionId} 
-            userId={userId} 
-          />
-        )}
-      </div>
-    </div>
+        <div className="h-screen w-full flex items-center justify-center bg-white">
+              {/* content */}
+              <div className="flex flex-col items-start justify-center h-full p-8">
+                <h1 className="text-7xl font-bold text-black">Find Your Perfect Roommate!</h1>
+                <p className="py-4 text-2xl font-semibold text-gray-700">
+                  Search, Match and Connect with 
+                  <br/>Potential Roommates Effortlessly
+                </p>
+                <Link 
+                  href={userId ? '/listing' : '/login'}>
+                 <button className="btn btn-primary">Get Started</button>
+                </Link>
+              </div>
+    
+            {/* bg image */}
+            <Image
+               alt="Roommate Search"
+               src="/13027.jpg"
+               className="w-1/2 p-8"
+               width={800}
+               height={600}
+               style={{ objectFit: "cover" }}
+               priority={true}
+              />
+          </div>
   );
 }

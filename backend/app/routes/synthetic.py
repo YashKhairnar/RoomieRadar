@@ -2,27 +2,26 @@ from fastapi import APIRouter, Request, Body, Query
 from fastapi.responses import JSONResponse
 import uuid
 from typing import Any, Dict
-
-from ..db.synthetic_models import ActionType
-from ..db.db import db
-from ..utils.logger import logger
-from ..utils.session_manager import session_manager
+from db.synthetic_models import ActionType
+from db.db import db
+from utils.logger import logger
+from utils.session_manager import session_manager
 
 router = APIRouter()
 
 @router.post("/reset")
-def reset_environment(seed: str = Query(None)):
+def reset_environment():
     db.reset_database()
     session_manager.clear_session()
-    return {"status": "ok", "seed": seed}
+    return {"status": "ok"}
 
 @router.post("/new_session")
-def new_session(seed: str = Query(None)):
+def new_session():
     # 1) Generate
     session_id = str(uuid.uuid4())
     session_manager.create_session(session_id)
     # 2) Clear logs & reset state
-    db.reset_database(seed)
+    # db.reset_database()
     # 3) Return + set cookie
     resp = JSONResponse({"session_id": session_id})
     resp.set_cookie(
