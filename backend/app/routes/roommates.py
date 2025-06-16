@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from typing import List
 from fastapi.responses import JSONResponse
-from db.db import db
-from db.models import RoommateProfile, Matches
-from utils.logger import logger
-from db.synthetic_models import RoommateProfile as ORMRoommateProfile
-from utils.vibeModel import calculate_similarity_score
+from sqlalchemy import and_, or_
+from ..db.db import db
+from ..db.models import RoommateProfile, Matches
+from ..utils.logger import logger
+from ..db.synthetic_models import ActionType, RoommateProfile as ORMRoommateProfile
+from ..utils.vibeModel import calculate_similarity_score
+# from db.db import db
+# from db.models import RoommateProfile, Matches
+# from utils.logger import logger
+# from utils.vibeModel import calculate_similarity_score
+# from db.synthetic_models import ActionType, RoommateProfile as ORMRoommateProfile
 
 router = APIRouter()
 
@@ -91,23 +97,58 @@ def get_matches(id: int):
 
     return matched_profiles
 
+
 @router.post("/createMatch")
 def create_match(request: Request):
-    user_id = request.query_params.get("user_id")
-    match_roommate_id = request.query_params.get("match_roommate_id")
+    try:
+        user_id = int(request.query_params.get("user_id"))
+        match_roommate_id = int(request.query_params.get("match_roommate_id"))
+        session_id = request.query_params.get("session_id", "no_session")
+
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid user_id or match_roommate_id")
+
+    db_session = next(db.get_db())
+    print(f"Creating match for user {user_id} with roommate {match_roommate_id}")
 
     if not user_id or not match_roommate_id:
         raise HTTPException(status_code=400, detail="User ID and Match Roommate ID are required")
-    print(f"Creating match for user {user_id} with roommate {match_roommate_id}")
+
     try:
-        db_session = next(db.get_db())
-        match = Matches(
-            user_id=user_id,
-            match_roommate_id=match_roommate_id,
-        )
-        db_session.add(match)
-        db_session.commit()
-        return JSONResponse(content={"message": match.user_id}, status_code=200)
+        exists = db_session.query(Matches).filter(
+            or_(
+                and_(Matches.user_id == user_id, Matches.match_roommate_id == match_roommate_id),
+                and_(Matches.user_id == match_roommate_id, Matches.match_roommate_id == user_id)
+            )
+        ).first()
+
+        if exists:
+            print("match already exists")
+            return JSONResponse(content={"message": exists.id}, status_code=200)
+        
+        else:
+            match = Matches(
+                user_id=user_id,
+                match_roommate_id=match_roommate_id
+            )
+            db_session.add(match)
+            db_session.commit()
+            db_session.refresh(match)
+            print("match created")
+
+            logger.log_action(
+                session_id, 
+                ActionType.DB_UPDATE,
+                {
+                    "table_name": "Matches", 
+                    "update_type": "insert", 
+                    "text": f"User {match.user_id} created in database a match with roommate {match.match_roommate_id}",
+                    "values": {
+                        "id": match.id
+                    }
+                }
+            )
+            return JSONResponse(content={"message": match.id}, status_code=200)
     except Exception as e:
         # logger.error(f"Error creating match: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

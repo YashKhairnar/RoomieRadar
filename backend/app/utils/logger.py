@@ -1,10 +1,12 @@
 import json
 import time
 from typing import Any, Dict, List
-
-from utils.session_manager import session_manager
-from db.db import db, Database
-from db.synthetic_models import ActionType, Log, HttpRequestPayload, LogPayload
+from .session_manager import session_manager
+from ..db.db import db, Database
+from ..db.synthetic_models import ActionType, Log, HttpRequestPayload, LogPayload
+# from .session_manager import session_manager
+# from db.db import db, Database
+# from db.synthetic_models import ActionType, Log, HttpRequestPayload, LogPayload
 
 class Logger:
     def __init__(self, db: Database):

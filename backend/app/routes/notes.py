@@ -1,10 +1,15 @@
+import datetime
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
-from db.synthetic_models import RoommateSignUp, RoommateLogin, RoommateRegisterProfile
-from db.db import db
-from db.models import User, RoommateProfile
-from utils.logger import logger
 import hashlib
+from ..db.synthetic_models import ActionType, RoommateSignUp, RoommateLogin, RoommateRegisterProfile
+from ..db.db import db
+from ..db.models import User, RoommateProfile
+from ..utils.logger import logger
+# from db.synthetic_models import ActionType, RoommateSignUp, RoommateLogin, RoommateRegisterProfile
+# from db.db import db
+# from db.models import User, RoommateProfile
+# from utils.logger import logger
 
 router = APIRouter()
 
@@ -12,11 +17,13 @@ def fake_hash(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 @router.post("/signup")
-def register(user: RoommateSignUp,db_session:Session = Depends(db.get_db)):
+def register(user: RoommateSignUp, request: Request,db_session:Session = Depends(db.get_db)):
     # Check if username already exists
     existing_user = db_session.query(User).filter(User.email == user.email).first()
     password = user.password # In production, hash this password
     hashed_password = fake_hash(password)
+    session_id = request.query_params.get("session_id", "no_session")
+
     if existing_user:
         raise HTTPException(status_code=400, detail="Username email already exists")
     
@@ -29,28 +36,29 @@ def register(user: RoommateSignUp,db_session:Session = Depends(db.get_db)):
     db_session.add(new_user)
     db_session.commit()
     db_session.refresh(new_user)
-    # logger.log_action(
-    #     session_id, 
-    #     ActionType.DB_UPDATE, 
-    #     {
-    #         "table_name": "users", 
-    #         "update_type": "insert", 
-    #         "text": f"User {new_user.username} created in database with id {new_user.id}, username {new_user.username}, password {new_user.password}",
-    #         "values": {
-    #             "id": new_user.id,
-    #             "username": new_user.username,
-    #             "password": new_user.password,
-    #             "created_at": new_user.created_at.isoformat() if new_user.created_at else None,
-    #             "updated_at": new_user.updated_at.isoformat() if new_user.updated_at else None
-    #         }
-    #     }
-    # )
+
+    logger.log_action(
+        session_id, 
+        ActionType.DB_UPDATE, 
+        {
+            "table_name": "users", 
+            "update_type": "insert", 
+            "text": f"User {new_user.email} created in database with id {new_user.id}, username {new_user.email}, password {new_user.password}",
+            "values": {
+                "id": new_user.id,
+                "email": new_user.email,
+                "password": new_user.password,
+                "created_at": datetime.datetime.now().isoformat(),
+                "updated_at": datetime.datetime.now().isoformat()
+            }
+        }
+    )
     return {"email": new_user.email, "userId":new_user.id}
 
 
 
 @router.post("/login")
-def login(user: RoommateLogin, db_session: Session = Depends(db.get_db)):
+def login(user: RoommateLogin, request:Request, db_session: Session = Depends(db.get_db)):
     email = user.email
     password = user.password
     # Find user by email and password (in production, use hashed password verification)
@@ -64,16 +72,17 @@ def login(user: RoommateLogin, db_session: Session = Depends(db.get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # logger.log_action(
-    #     session_id,
-    #     ActionType.CUSTOM,
-    #     {
-    #         "custom_action": "login", 
-    #         "text": f"User {user.username} logged in",
-    #         "data": {"userId": user.id}
-    #     }
-    # )
-
+    session_id = request.query_params.get("session_id", "no_session")
+    # log user login action
+    logger.log_action(
+        session_id,
+        ActionType.CUSTOM,
+        {
+            "custom_action": "login", 
+            "text": f"User {user.email} logged in",
+            "data": {"userId": user.id}
+        }
+    )
     return {"userId": user.id}
 
 
@@ -112,5 +121,23 @@ def register_roommate(user : RoommateRegisterProfile, request:Request, db_sessio
     db_session.add(new_roommate)
     db_session.commit()
     db_session.refresh(new_roommate)
+
+
+    # logger.log_action(
+    #     session_id, 
+    #     ActionType.DB_UPDATE, 
+    #     {
+    #         "table_name": "users", 
+    #         "update_type": "insert", 
+    #         "text": f"User {new_user.email} created in database with id {new_user.id}, username {new_user.email}, password {new_user.password}",
+    #         "values": {
+    #             "id": new_user.id,
+    #             "email": new_user.email,
+    #             "password": new_user.password,
+    #             "created_at": datetime.datetime.now().isoformat(),
+    #             "updated_at": datetime.datetime.now().isoformat()
+    #         }
+    #     }
+    # )
 
     return {"userId": new_roommate.user_id, "message": "Roommate profile created successfully" }

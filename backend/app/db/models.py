@@ -2,8 +2,6 @@ from sqlalchemy import Column, Integer, String, Date, DateTime, Boolean, Foreign
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .db import Base
-from .models import *
-
 """
 Application models: The ORM models that represent the database tables.
 """
@@ -16,6 +14,9 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     
     roommate_profile = relationship("RoommateProfile", back_populates="user", uselist=False)
+    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+
+    sent_messages = relationship("Messages", back_populates="sender", cascade="all, delete-orphan", foreign_keys="[Messages.sender_id]")
 
 class RoommateProfile(Base):
     __tablename__ = "roommate_profiles"
@@ -49,10 +50,12 @@ class RoommateProfile(Base):
 
     # for user table
     user = relationship("User",back_populates="roommate_profile")
-
     # for matches table
     matches_initiated = relationship("Matches", back_populates="roommate_profile", cascade="all, delete-orphan", foreign_keys="[Matches.user_id]")
     matches_received = relationship("Matches", back_populates="matched_roommate", cascade="all, delete-orphan", foreign_keys="[Matches.match_roommate_id]")
+
+    conversations = relationship("Conversation", back_populates="roommate_profile", cascade="all, delete-orphan", foreign_keys="[Conversation.roommate_profile_id]")
+
 class Matches(Base):
     __tablename__ = "matches"
     
@@ -63,3 +66,29 @@ class Matches(Base):
 
     roommate_profile = relationship("RoommateProfile", foreign_keys=[user_id], back_populates="matches_initiated")
     matched_roommate = relationship("RoommateProfile", foreign_keys=[match_roommate_id], back_populates="matches_received")
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)  # Foreign key to User
+    roommate_profile_id = Column(Integer, ForeignKey("roommate_profiles.user_id"), nullable=False)  # Foreign key to RoommateProfile
+
+    
+    user = relationship("User", back_populates="conversations")
+    roommate_profile = relationship("RoommateProfile", back_populates="conversations")
+
+    messages = relationship("Messages", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class Messages(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)  # Foreign key to Conversation
+    sender_id = Column(Integer, ForeignKey("user.id"), nullable=False)  # Foreign key to User
+    content = Column(String(1000), nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User", back_populates="sent_messages", foreign_keys=[sender_id])

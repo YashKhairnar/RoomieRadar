@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Mail, Lock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -9,10 +9,16 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-
   const router = useRouter();
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const handleSubmit = async(e) => {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.__SESSION_ID__) {
+      setSessionId(window.__SESSION_ID__);
+    }
+  }, []);
+
+  const handleSubmit = async(e :React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     //for login purpose api call
@@ -21,7 +27,7 @@ export default function AuthPage() {
         setError('Email and password are required');
         return;
       }
-      const res = await fetch(`http://127.0.1:8000/api/login`, {
+      const res = await fetch(`http://127.0.1:8000/api/login?session_id=${sessionId}`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
@@ -34,6 +40,22 @@ export default function AuthPage() {
         // Store user ID in localStorage
         localStorage.setItem('user_id',data.userId)
         // Redirect to listing page with session_id and userId
+        const logAction = await fetch(`http://127.0.0.1:8000/_synthetic/log_event?session_id=${sessionId}`, {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            'actionType': 'set_storage',
+            'payload':{
+              "text": "Setting user ID in session storage",
+              "page_url": "str",
+              "storage_type": "session",
+              "key": "user_id",
+              "value": `${data.userId}`
+            }
+          }),
+        })
         router.push(`/`);
       }else {
         const errorData = await res.json();
@@ -46,7 +68,7 @@ export default function AuthPage() {
         setError('Passwords do not match');
         return;
       }
-      const res = await fetch(`http://127.0.0.1:8000/api/signup`,{
+      const res = await fetch(`http://127.0.0.1:8000/api/signup?session_id=${sessionId}`,{
         method : "POST",
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +148,7 @@ export default function AuthPage() {
         <p className="mt-4 text-center text-gray-600">
           {isLogin ? (
             <>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button onClick={() => setIsLogin(false)} className="text-purple-600 hover:underline">Sign Up</button>
             </>
           ) : (

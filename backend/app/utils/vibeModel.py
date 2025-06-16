@@ -1,6 +1,5 @@
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-import datetime
 
 # we use these properties to calculate the vibe score
 # "gender": "Male", # male, female, other

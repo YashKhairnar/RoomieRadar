@@ -2,9 +2,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
 from .base import Base
-from .models import User, RoommateProfile, Matches
-from utils.dummyData import fake_users, fake_roommate_profiles
-
+from .models import User, RoommateProfile, Matches, Conversation, Messages
+from ..utils.dummyData import fake_users, fake_roommate_profiles
+# from .base import Base
+# from .models import User, RoommateProfile, Matches, Conversation, Messages
+# from utils.dummyData import fake_users, fake_roommate_profiles
 
 class Database:
     def __init__(self):
@@ -79,6 +81,24 @@ class Database:
             match_roommate_id = 1
         )
         db.add(match)
+
+        #add conversations
+        conversation = Conversation(
+            user_id = 5,
+            roommate_profile_id = 1,
+        )
+        db.add(conversation)
+
+        #add dummy messages 
+        messages = [
+            Messages(conversation_id=1, sender_id=5, content="Hey! I saw your profile. Are you still looking for a roommate?"),
+            Messages(conversation_id=1, sender_id=1, content="Hey! Yes, I am. Are you still available?"),
+            Messages(conversation_id=1, sender_id=5, content="Absolutely! I work nearby and prefer early mornings."),
+            Messages(conversation_id=1, sender_id=1, content="Great! I’m also an early riser. How about weekends?"),
+            Messages(conversation_id=1, sender_id=5, content="Weekends are usually chill for me. Want to catch up for a coffee?"),
+        ]
+        db.add_all(messages)
+        
         db.commit()
 
 

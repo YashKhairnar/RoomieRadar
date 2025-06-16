@@ -48,7 +48,7 @@ export default function Navbar(){
                 </Link>
               </li>
               <li>
-                <Link href={'/chat'}>
+                <Link href={`/chat/${userId}`}>
                   <MessageCircle className="inline-block mr-1" />
                 </Link>
               </li>
@@ -79,20 +79,15 @@ export default function Navbar(){
           <div className="bg-white p-4 rounded-xl shadow-lg w-64">
             <ul className="space-y-4">
               <li className="flex items-center justify-between">
-                <Link href="/" className="text-gray-700 hover:text-purple-600 font-medium">
-                  Profile Settings
-                </Link>
-                <button
-                  onClick={() => setModalOpen(false)}
-                >
-                  <X className="inline-block text-red-600" size={18} />
-                </button>
-              </li>
-              <li>
                 <button 
                   onClick={handleLogout}
                   className="text-gray-700 hover:text-red-500 font-medium">
                   Logout
+                </button>
+                <button
+                  onClick={() => setModalOpen(false)}
+                >
+                  <X className="inline-block text-red-600" size={18} />
                 </button>
               </li>
             </ul>

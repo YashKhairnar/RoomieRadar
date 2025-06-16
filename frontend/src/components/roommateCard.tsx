@@ -23,11 +23,39 @@ import {
 } from 'lucide-react';
 import React from "react";
 
+type Roommate = {
+  id: number;
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  age: number;
+  occupation: string;
+  bio: string;
+  preferred_location: string;
+  preferred_room_type: string;
+  hobbies: string;
+  pets_allowed: boolean;
+  smoking_allowed: boolean;
+  drinking_allowed: boolean;
+  sleepSchedule: string;
+  cookingFrequency: string;
+  cleanlinessLevel: number;
+  noiseTolerance: number;
+  socialInteraction: number;
+  move_in_date: string;
+  move_out_date?: string;
+  budget_min: number;
+  budget_max: number;
+  verified: boolean;
+  image_url: string;
+  vibe_score: number;
+};
 
-export default function RoommateCard({ roommate }) {
+export default function RoommateCard({ roommate , session_id}: { roommate: Roommate, session_id:any }) {
   // Sample roommate data
-  const getInterestIcon = (interest) => {
-    const icons = {
+  const getInterestIcon = (interest:string) => {
+    const icons : Record<string, React.ElementType> = {
       reading: Book,
       traveling: Plane,
       cooking: UtensilsCrossed,
@@ -52,10 +80,25 @@ export default function RoommateCard({ roommate }) {
     return icons[interest] || Star;
   };
 
+  const logGoBack = async()=>{
+    const res = await fetch(`http://127.0.0.1:8000/_synthetic/log_event?session_id=${session_id}`,{
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          "actionType" : 'go_back',
+          'payload':{
+              "text": "Going back to previous page",
+              "page_url" : `${window.location.href}` 
+            }
+     })
+    })
+  }
   return (
     <div className="bg-gray-100 p-6 md:p-8 h-full">
       <div className="flex flex-col space-y-2 justify-start p-8 w-2/3 mx-auto rounded-lg shadow-lg bg-white">
-        <ChevronLeft className="w-6 h-6 text-gray-500 cursor-pointer" onClick={() => window.history.back()} />
+        <ChevronLeft className="w-6 h-6 text-gray-500 cursor-pointer" onClick={() => {window.history.back(), logGoBack()}} />
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           
@@ -68,7 +111,7 @@ export default function RoommateCard({ roommate }) {
               className="rounded-full"
             />
             <div>
-              <h1 className="text-2xl font-bold text-black">Hi, I'm {roommate.first_name}</h1>
+              <h1 className="text-2xl font-bold text-black">Hi, I&apos;m {roommate.first_name}</h1>
               {roommate.verified && (
               <div className="inline-flex items-center gap-2 border border-gray-300 rounded-full px-2 py-1 text-sm bg-gray-100">
                  <BadgeCheck className="w-5 h-5 text-green-600" />

@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-
 declare global {
   interface Window {
     __SESSION_ID__: string;
@@ -13,6 +12,28 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [ userId, setUserId ] = useState<string | null>(null);
 
+  const logClick = async(e: React.MouseEvent<HTMLAnchorElement>)=>{
+    const coords = {
+    x: e.clientX,
+    y: e.clientY,
+    };
+
+    const res = await fetch(`http://127.0.0.1:8000/_synthetic/log_event?session_id=${sessionId}`,{
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          "actionType" : 'click',
+          'payload':{
+              "text": "Clicking on the get started button",
+              "page_url" : `${window.location.href}` ,
+              "element_identifier" : "Get started button",
+              "coordinates": coords
+            }
+     })
+    })
+  }
   // Initialize session on component mount
   useEffect(() => {
     if( window.__SESSION_ID__) {
@@ -73,7 +94,11 @@ export default function Home() {
                   <br/>Potential Roommates Effortlessly
                 </p>
                 <Link 
-                  href={userId ? '/listing' : '/login'}>
+                  onClick={(e)=>{logClick(e)}}
+                  href={{
+                    pathname : userId ? '/listing' : '/login',
+                    query : {"session_id":sessionId}
+                    }}>
                  <button className="btn btn-primary">Get Started</button>
                 </Link>
               </div>

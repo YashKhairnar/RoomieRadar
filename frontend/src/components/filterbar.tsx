@@ -1,13 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import {MapPin, Calendar, Users, Home, Heart, Search, ChevronDown, ChevronUp } from 'lucide-react';
-import { Slider } from '@heroui/slider';
 // import {Slider} from "@heroui/react";
+type Roommate = {
+  id: number;
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  age: number;
+  occupation: string;
+  bio: string;
+  preferred_location: string;
+  preferred_room_type: string;
+  hobbies: string;
+  pets_allowed: boolean;
+  smoking_allowed: boolean;
+  drinking_allowed: boolean;
+  sleepSchedule: string;
+  cookingFrequency: string;
+  cleanlinessLevel: number;
+  noiseTolerance: number;
+  socialInteraction: number;
+  move_in_date: string;
+  move_out_date?: string;
+  budget_min: number;
+  budget_max: number;
+  verified: boolean;
+  image_url: string;
+  vibe_score: number;
+};
+interface Props {
+  roommates: Roommate[];
+  setRoommates: (roommates: Roommate[]) => void;
+  setCurrentIndex: (index: number) => void;
+}
 
-const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
+type Filters = {
+  ageRange: [number, number];
+  gender: string[];
+  budget: [number, number];
+  location: string;
+  housingType: string;
+  moveInDate: string;
+  leaseDuration: string;
+  smoking: boolean | '';
+  drinking: boolean | '';
+  pets: boolean | '';
+  cleanliness: number;
+  noiseLevel: number;
+  sleepSchedule: string;
+  cookingFrequency: string;
+  selectedInterests: string[];
+  verified: boolean;
+};
+
+
+const RoommateFilter: React.FC<Props> = ({ roommates, setRoommates, setCurrentIndex }) => {
   const [allRoommates, setAllRoommates] = useState(roommates);
   const [filteredRoommates, setFilteredRoommates] = useState(roommates);
-
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     // Basic filters
     ageRange: [18, 35],
     gender: [],
@@ -32,10 +83,13 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
     verified: false,
   });
 
+  const verificationOptions: { key: keyof typeof filters; label: string }[] = [
+  { key: 'verified', label: 'Verified Profile' },
+  ];
+
   useEffect(()=>{
     console.log('Filters updated:', filters);
   },[filters])
-  
 
   useEffect(()=>{
     console.log('Roommates filtered: ', filteredRoommates);
@@ -48,7 +102,7 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
   
   useEffect(() => {
         setRoommates(filteredRoommates);
-    }, [filteredRoommates]);
+    }, [filteredRoommates, setRoommates]);
 
   // State to manage expanded sections
   const [expandedSections, setExpandedSections] = useState({
@@ -62,14 +116,12 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
 
   const filterAll = () => {
       let result = roommates;
-      const { ageRange, gender, budget, location, housingType, moveInDate,selectedInterests, 
+       const { ageRange, gender, budget, location, housingType, moveInDate,selectedInterests, 
               smoking, drinking, pets, cleanliness, noiseLevel
         } = filters;
-
-      result = result.filter(r => {
+      result = result.filter(r=> {
         const genderOK = gender.length === 0 || gender.includes(r.gender);
         const ageOK = r.age >= ageRange[0] && r.age <= ageRange[1];
-
         //housing preferences
         const budgetOK = r.budget_min <= budget[0] && r.budget_max >= budget[1];
         const housingOK = r.preferred_room_type === housingType
@@ -136,31 +188,31 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
     "Volunteering"
   ];
 
-  const handleFilterChange = (category, value) => {
+  const handleFilterChange = (category: keyof Filters, value: any) => {
     setFilters(prev => ({
       ...prev,
       [category]: value
     }));
   };
 
-  const handleArrayFilter = (category, value) => {
+  const handleArrayFilter = (category: keyof Filters, value: any) => {
     setFilters(prev => ({
       ...prev,
-      [category]: prev[category].includes(value)
-        ? prev[category].filter(item => item !== value)
-        : [...prev[category], value]
+      [category]: (prev[category] as any[]).includes(value)
+        ? (prev[category] as any[]).filter(item => item !== value)
+        : [...(prev[category] as any[]), value]
     }));
   };
 
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-        [section]: !prev[section],
-        ...Object.keys(prev).reduce((acc, key) => {
-          if (key !== section) acc[key] = false; // Collapse other sections
-          return acc;
-        }, {})
-        }));
-    }
+   const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections((prev) => {
+      const updated: typeof prev = Object.keys(prev).reduce((acc, key) => {
+        acc[key as keyof typeof prev] = key === section ? !prev[key as keyof typeof prev] : false;
+        return acc;
+      }, {} as typeof prev);
+      return updated;
+    });
+  };
     
   const clearAllFilters = () => {
     setFilters({
@@ -174,8 +226,8 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
       smoking: '',
       drinking: '',
       pets: '',
-      cleanliness: [],
-      noiseLevel: [],
+      cleanliness: 1,
+      noiseLevel: 1,
       sleepSchedule: '',
       cookingFrequency: '',
       selectedInterests: [],
@@ -187,7 +239,19 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
   };
 
 
-  const FilterSection = ({ title, icon: Icon, sectionKey, children }) => (
+  type FilterSectionProps = {
+    title: string;
+    icon: React.ElementType;
+    sectionKey: string;
+    children: React.ReactNode;
+  };
+
+  const FilterSection:React.FC<{
+  title: string;
+  icon: React.ElementType;
+  sectionKey: 'basic' | 'housing' | 'lifestyle' | 'schedule' | 'interests' | 'verification';
+  children: React.ReactNode;
+}> = ({ title, icon: Icon, sectionKey, children }) => (
     <div className="border-b border-gray-200 pb-4">
       <button
         onClick={() => toggleSection(sectionKey)}
@@ -475,14 +539,11 @@ const RoommateFilter = ({roommates, setRoommates, setCurrentIndex}) => {
             {/* Verification */}
             <FilterSection title="Verification" icon={Search} sectionKey="verification">
               <div className="space-y-3">
-                {[
-                  { key: 'verified', label: 'Verified Profile' },
-                  { key: 'all', label: 'All' },
-                ].map(item => (
+                {verificationOptions.map(item => (
                   <label key={item.key} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={filters[item.key]}
+                       checked={Boolean(filters[item.key])} // ensures value is coerced to boolean
                       onChange={(e) => handleFilterChange(item.key, e.target.checked)}
                       className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
                     />

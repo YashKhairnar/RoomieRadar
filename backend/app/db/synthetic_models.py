@@ -210,3 +210,10 @@ class RoommateProfile(BaseModel):
         json_encoders = {
             list: lambda v: ', '.join(v)  # Convert list to comma-separated string
         }
+
+
+### Message pydantic models #####
+class SentMessage(BaseModel):
+    conversation_id: int
+    sender_id: int
+    content: str

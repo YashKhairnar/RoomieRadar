@@ -3,15 +3,63 @@ import React, { useState, useEffect } from 'react';
 import { Heart, X, TriangleAlert, BadgeCheck} from 'lucide-react';
 import RoommateFilter from '@/components/filterbar';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
+
+type Roommate = {
+  id: number;
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  age: number;
+  occupation: string;
+  bio: string;
+  preferred_location: string;
+  preferred_room_type: string;
+  hobbies: string;
+  pets_allowed: boolean;
+  smoking_allowed: boolean;
+  drinking_allowed: boolean;
+  sleepSchedule: string;
+  cookingFrequency: string;
+  cleanlinessLevel: number;
+  noiseTolerance: number;
+  socialInteraction: number;
+  move_in_date: string;
+  move_out_date?: string;
+  budget_min: number;
+  budget_max: number;
+  verified: boolean;
+  image_url: string;
+  vibe_score: number;
+};
 
 const RoommateSwiper = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [registered, setRegistered] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [swipeDirection, setSwipeDirection] = useState(null);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'star' | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [roommates, setRoommates] = useState([]);
+  const [roommates, setRoommates] = useState<Roommate[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
+  useEffect(() => {
+    // Check if session ID is available in global window object
+    // if (typeof window !== 'undefined' && window.__SESSION_ID__) {
+    //   setSessionId(window.__SESSION_ID__);
+    // } else {
+    //   console.error('Session ID not found in global window object');
+    //   return;
+    // }
+    const sessionId = searchParams.get('session_id');
+    if (sessionId) {
+      setSessionId(sessionId);
+      }
+  }, []);
+
+  
   // Check if user is logged in and registered
   useEffect(()=>{
     // Get userId from localStorage
@@ -53,7 +101,7 @@ const RoommateSwiper = () => {
   }, [userId, registered]);
 
   // Handle swipe actions
-  const handleSwipe = (direction) => {
+  const handleSwipe = (direction : 'left'|'right') => {
     if (isAnimating || currentIndex >= roommates.length) return;
     setIsAnimating(true);
     setSwipeDirection(direction);
@@ -66,8 +114,8 @@ const RoommateSwiper = () => {
   };
 
   // Handle matching with a roommate. This function sends a POST request to the backend to create a match
-  const handleMatch = async(roommateId)=>{
-    const data = await fetch(`http://127.0.0.1:8000/api/createMatch?user_id=${userId}&match_roommate_id=${roommateId}`, {
+  const handleMatch = async(roommateId: number)=>{
+    const data = await fetch(`http://127.0.0.1:8000/api/createMatch?user_id=${userId}&match_roommate_id=${roommateId}&session_id=${sessionId}`, {
       method: 'POST'
     })
     const res = await data.json();
@@ -80,7 +128,7 @@ const RoommateSwiper = () => {
   }
 
   const currentRoommate = roommates[currentIndex];
-  const vibescore = currentRoommate ? currentRoommate.vibe_score.toPrecision(2) : 0;
+  const vibescore = currentRoommate ? Number(currentRoommate.vibe_score.toPrecision(2)) : 0;
 
   if(!userId){
     return (
@@ -132,10 +180,12 @@ const RoommateSwiper = () => {
           }`}>
             {/* Image */}
             <div className="relative h-72 overflow-hidden">
-              <img 
+              <Image
+                width={400}
+                height={300}
                 src={currentRoommate.image_url} 
                 alt={currentRoommate.first_name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
 
@@ -176,8 +226,13 @@ const RoommateSwiper = () => {
                 <h2 className='text-gray-500 pb-2'>A measure of how well you and this person might get along as roommates.</h2>
                 <div
                   className="radial-progress bg-purple-100 text-purple-500 border-purple-100 border-8"
-                  style={{ "--value": `${vibescore*10}`, "--size": "8rem", "--thickness": "1rem" } /* as React.CSSProperties */ } 
-                  aria-valuenow={vibescore}
+                  style={
+                      {
+                        "--value": `${vibescore * 10}`,
+                        "--size": "8rem",
+                        "--thickness": "1rem"
+                      } as any
+                    }
                   role="progressbar"
                 >
                   {vibescore}/10
