@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
-import { Heart, X, TriangleAlert, BadgeCheck} from 'lucide-react';
+import { Heart, X, TriangleAlert, BadgeCheck, RefreshCw} from 'lucide-react';
 import RoommateFilter from '@/components/filterbar';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -41,23 +41,17 @@ const RoommateSwiper = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'star' | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [originalRoommates, setOriginalRoommates] = useState<Roommate[]>([]); // Store original data
   const [roommates, setRoommates] = useState<Roommate[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Check if session ID is available in global window object
-    // if (typeof window !== 'undefined' && window.__SESSION_ID__) {
-    //   setSessionId(window.__SESSION_ID__);
-    // } else {
-    //   console.error('Session ID not found in global window object');
-    //   return;
-    // }
     const sessionId = searchParams.get('session_id');
     if (sessionId) {
       setSessionId(sessionId);
-      }
-  }, []);
+    }
+  }, [searchParams]);
 
   
   // Check if user is logged in and registered
@@ -70,14 +64,18 @@ const RoommateSwiper = () => {
     }
     setUserId(storedId);
     const fetchUserProfile = async()=>{
-      const res =  await fetch(`http://127.0.0.1:8000/api/roommate/${storedId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/api/roommate/${storedId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        if(res.status === 200){
+          setRegistered(true);
         }
-      })
-      if(res.status === 200){
-        setRegistered(true);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
       }
     }
     fetchUserProfile()
@@ -89,22 +87,37 @@ const RoommateSwiper = () => {
       return;
 
     const fetchRoommates = async () => {
-      const res = await fetch(`http://127.0.0.1:8000/api/roommates?user_id=${userId}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch roommates');
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/api/roommates?user_id=${userId}`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch roommates');
+        }
+        const data = await res.json();
+        console.log('Fetched roommates:', data);
+        setOriginalRoommates(data);
+        setRoommates(data);
+        setCurrentIndex(0); // Reset index when new data is loaded
+      } catch (error) {
+        console.error('Error fetching roommates:', error);
       }
-      const data = await res.json();
-      console.log(data);
-      setRoommates(data);
     };
     fetchRoommates();
   }, [userId, registered]);
 
+  // Handle when filtered roommates change
+  useEffect(() => {
+    if (currentIndex >= roommates.length) {
+      setCurrentIndex(0);
+    }
+  }, [roommates, currentIndex]);
+
   // Handle swipe actions
   const handleSwipe = (direction : 'left'|'right') => {
     if (isAnimating || currentIndex >= roommates.length) return;
+    
     setIsAnimating(true);
     setSwipeDirection(direction);
+    
     // Simulate swipe animation duration
     setTimeout(() => {
       setCurrentIndex(prev => prev + 1);
@@ -115,17 +128,26 @@ const RoommateSwiper = () => {
 
   // Handle matching with a roommate. This function sends a POST request to the backend to create a match
   const handleMatch = async(roommateId: number)=>{
-    const data = await fetch(`http://127.0.0.1:8000/api/createMatch?user_id=${userId}&match_roommate_id=${roommateId}&session_id=${sessionId}`, {
-      method: 'POST'
-    })
-    const res = await data.json();
-    if(res.message){
-      console.log("Match created successfully");
-    }
-    else{
-      console.error("Failed to create match");
+    try {
+      const data = await fetch(`http://127.0.0.1:8000/api/createMatch?user_id=${userId}&match_roommate_id=${roommateId}&session_id=${sessionId}`, {
+        method: 'POST'
+      });
+      const res = await data.json();
+      if(res.message){
+        console.log("Match created successfully");
+      } else {
+        console.error("Failed to create match");
+      }
+    } catch (error) {
+      console.error("Error creating match:", error);
     }
   }
+
+  // Handle refresh - reset to original data and index
+  const handleRefresh = () => {
+    setRoommates(originalRoommates);
+    setCurrentIndex(0);
+  };
 
   const currentRoommate = roommates[currentIndex];
   const vibescore = currentRoommate ? Number(currentRoommate.vibe_score.toPrecision(2)) : 0;
@@ -161,8 +183,14 @@ const RoommateSwiper = () => {
   else{
    return (
     <div className="h-screen bg-white flex">
-      <RoommateFilter roommates={roommates} setRoommates={setRoommates} setCurrentIndex={setCurrentIndex}/>
-      { currentIndex < roommates.length ? (
+      <RoommateFilter 
+        roommates={originalRoommates} 
+        setRoommates={setRoommates} 
+        setCurrentIndex={setCurrentIndex}
+        handleRefresh={handleRefresh}
+      />
+      
+      {currentIndex < roommates.length && roommates.length > 0 ? (
       <div className="max-w-md mx-auto w-[400px]">
         {/* Card Stack */}
         <div className="relative h-[600px] mb-8">
@@ -184,7 +212,7 @@ const RoommateSwiper = () => {
                 width={400}
                 height={300}
                 src={currentRoommate.image_url} 
-                alt={currentRoommate.first_name}
+                alt={`${currentRoommate.first_name} ${currentRoommate.last_name}`}
                 className="w-full h-full object-cover transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
@@ -239,7 +267,6 @@ const RoommateSwiper = () => {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -253,7 +280,6 @@ const RoommateSwiper = () => {
             <X className="w-6 h-6" />
           </button>
           
-          
           <button 
             onClick={() => {
               handleSwipe('right')
@@ -265,16 +291,30 @@ const RoommateSwiper = () => {
             <Heart className="w-6 h-6" />
           </button>
         </div>
+
+        {/* Results counter */}
+        <div className="text-center mt-4 text-sm text-gray-500">
+          {currentIndex + 1} of {roommates.length} results
+        </div>
       </div>
       ):(
         <div className="flex flex-col items-center justify-center w-full h-full p-8">
           <TriangleAlert className="w-16 h-16 text-gray-400 mb-4" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">
-            No roommates available
+            {roommates.length === 0 ? 'No matches found' : 'You have reached the end of the list'}
           </h3>
           <p className="text-gray-500 text-center max-w-xs mb-6">
-            We couldn’t find any matches right now. Try adjusting your filters or check back later.
+            {roommates.length === 0 ? 'Try adjusting your filters to see more results' : 'Refresh to see the list again or adjust filters'}
           </p>
+          <div className="flex gap-4">
+            <button
+              onClick={handleRefresh}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <RefreshCw className='w-4 h-4' />
+              Refresh List
+            </button>
+          </div>
         </div>
       )}
     </div>
